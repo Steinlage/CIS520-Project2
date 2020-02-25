@@ -1,245 +1,184 @@
-#include "userprog/syscall.h"
-#include <stdio.h>
-#include <syscall-nr.h>
-#include "threads/interrupt.h"
-#include "threads/thread.h"
+#include "syscall.h"
+#include "../syscall-nr.h"
 
-static void syscall_handler (struct intr_frame *);
+/* Invokes syscall NUMBER, passing no arguments, and returns the
+   return value as an `int'. */
+#define syscall0(NUMBER)                                        \
+        ({                                                      \
+          int retval;                                           \
+          asm volatile                                          \
+            ("pushl %[number]; int $0x30; addl $4, %%esp"       \
+               : "=a" (retval)                                  \
+               : [number] "i" (NUMBER)                          \
+               : "memory");                                     \
+          retval;                                               \
+        })
+
+/* Invokes syscall NUMBER, passing argument ARG0, and returns the
+   return value as an `int'. */
+#define syscall1(NUMBER, ARG0)                                           \
+        ({                                                               \
+          int retval;                                                    \
+          asm volatile                                                   \
+            ("pushl %[arg0]; pushl %[number]; int $0x30; addl $8, %%esp" \
+               : "=a" (retval)                                           \
+               : [number] "i" (NUMBER),                                  \
+                 [arg0] "g" (ARG0)                                       \
+               : "memory");                                              \
+          retval;                                                        \
+        })
+
+/* Invokes syscall NUMBER, passing arguments ARG0 and ARG1, and
+   returns the return value as an `int'. */
+#define syscall2(NUMBER, ARG0, ARG1)                            \
+        ({                                                      \
+          int retval;                                           \
+          asm volatile                                          \
+            ("pushl %[arg1]; pushl %[arg0]; "                   \
+             "pushl %[number]; int $0x30; addl $12, %%esp"      \
+               : "=a" (retval)                                  \
+               : [number] "i" (NUMBER),                         \
+                 [arg0] "r" (ARG0),                             \
+                 [arg1] "r" (ARG1)                              \
+               : "memory");                                     \
+          retval;                                               \
+        })
+
+/* Invokes syscall NUMBER, passing arguments ARG0, ARG1, and
+   ARG2, and returns the return value as an `int'. */
+#define syscall3(NUMBER, ARG0, ARG1, ARG2)                      \
+        ({                                                      \
+          int retval;                                           \
+          asm volatile                                          \
+            ("pushl %[arg2]; pushl %[arg1]; pushl %[arg0]; "    \
+             "pushl %[number]; int $0x30; addl $16, %%esp"      \
+               : "=a" (retval)                                  \
+               : [number] "i" (NUMBER),                         \
+                 [arg0] "r" (ARG0),                             \
+                 [arg1] "r" (ARG1),                             \
+                 [arg2] "r" (ARG2)                              \
+               : "memory");                                     \
+          retval;                                               \
+        })
 
 void
-syscall_init (void) 
+halt (void) 
 {
-  intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
-}
-
-static void
-syscall_handler (struct intr_frame *f UNUSED) 
-{
-  printf ("system call!\n");
-  thread_exit ();
-}
-
-void
-halt (void)
-{
-  shutdown_power_off();
+  syscall0 (SYS_HALT);
+  NOT_REACHED ();
 }
 
 void
 exit (int status)
 {
-  thread_current()->exit_status = status;
-
-  int i;
-  for (i = 3; i < 128; i++)
-    {
-      if (thread_current()->fdt[i] != NULL)
-        {
-            close(i);
-        }
-    }
-
-  printf("%s: exit(%d)\n", thread_current()->name, status);
-  thread_exit();
+  syscall1 (SYS_EXIT, status);
+  NOT_REACHED ();
 }
 
 pid_t
-exec (const char *cmd_line)
+exec (const char *file)
 {
-  pid_t child_pid = (pid_t)process_execute(cmd_line);
-  struct thread *child_proc = get_child_process((int)child_pid);
-
-  if(child_proc ==NULL)
-    {
-      return -1;
-    }
-  else
-    {
-      if(child_proc->load_flag ==1)
-        {
-          return child_pid;
-        }
-      else
-        {
-          return -1;
-        }
-    }
+  return (pid_t) syscall1 (SYS_EXEC, file);
 }
 
 int
 wait (pid_t pid)
 {
-  return process_wait(pid);
+  return syscall1 (SYS_WAIT, pid);
 }
 
 bool
 create (const char *file, unsigned initial_size)
-  {
-    if (file == NULL)
-      {
-        exit(-1);
-      }
-    else
-      {
-        return filesys_create(file, initial_size);
-      }
-  }
-
+{
+  return syscall2 (SYS_CREATE, file, initial_size);
+}
 
 bool
 remove (const char *file)
 {
-  return filesys_remove(file);
+  return syscall1 (SYS_REMOVE, file);
 }
 
-int 
+int
 open (const char *file)
 {
-  lock_acquire(&filesys_lock);
-  struct thread *cur = thread_current();
-  int fd, i;
-
-  if (file == NULL)
-    {
-      fd = -1;
-    }
-  else
-    {
-      struct file* open_file = filesys_open (file);
-
-      if(open_file != NULL)
-        {
-          if(strcmp(cur->name,file)==0)
-            {
-              file_deny_write(open_file);
-            }
-
-          cur->fdt[cur->next_fd] = open_file;
-          fd = cur->next_fd;
-
-          for (i=3;i<128;i++)
-            {
-              if (cur->fdt[i] == NULL)
-                {
-                  cur->next_fd = i;
-                  break;
-                }
-            }
-        }
-      else{
-        fd = -1;
-      }
-    }
-  lock_release(&filesys_lock);
-  return fd;
+  return syscall1 (SYS_OPEN, file);
 }
 
 int
-filesize(int fd)
+filesize (int fd) 
 {
-  int size;
-  struct file* read_file = thread_current()->fdt[fd];
-
-  size = file_length(read_file);
-  return size;
+  return syscall1 (SYS_FILESIZE, fd);
 }
 
 int
-read(int fd, void *buffer, unsigned size)
+read (int fd, void *buffer, unsigned size)
 {
-  lock_acquire(&filesys_lock);
-
-  struct file* read_file;
-  struct thread *cur = thread_current();
-  int read_bytes = 0,  i;
-
-  if(fd == 0)
-    {
-      for(i=0;(unsigned)i<size;i++)
-        {
-          *((char *)buffer+i) = input_getc();
-        }
-      read_bytes = size;
-    }
-  else
-    {
-      if(cur->fdt[fd]!=NULL)
-        {
-          read_file = cur->fdt[fd];
-          read_bytes = file_read(read_file, buffer, size);
-        }
-      else
-        {
-          read_bytes = -1;
-        }
-    }
-  lock_release(&filesys_lock);
-  return read_bytes;
+  return syscall3 (SYS_READ, fd, buffer, size);
 }
 
-int 
-write(int fd, const void *buffer, unsigned size)
+int
+write (int fd, const void *buffer, unsigned size)
 {
-  lock_acquire(&filesys_lock);
-  struct file* write_file;
-  struct thread *cur = thread_current();
-  int write_bytes = 0;
-
-  if(fd == 1)
-    {
-      putbuf(buffer, size);
-      write_bytes = size;
-    }
-  else
-    {
-      if(cur->fdt[fd]!=NULL)
-        {
-          write_file = cur->fdt[fd];
-          write_bytes = file_write(write_file, buffer, size);
-        }
-      else
-        {
-          write_bytes = 0;
-        }
-    }
-  lock_release(&filesys_lock);
-  return write_bytes;
+  return syscall3 (SYS_WRITE, fd, buffer, size);
 }
 
 void
-seek (int fd, unsigned position)
+seek (int fd, unsigned position) 
 {
-  struct thread *cur = thread_current();
-  if(cur->fdt[fd]==NULL)
-    {
-      exit(-1);
-    }
-  else
-    {
-      file_seek(cur->fdt[fd],position);
-    }
+  syscall2 (SYS_SEEK, fd, position);
 }
 
 unsigned
-tell (int fd)
+tell (int fd) 
 {
-  struct thread *cur = thread_current();
-  if(cur->fdt[fd]==NULL)
-    {
-      exit(-1);
-    }
-  else
-    {
-      return file_tell(cur->fdt[fd]);
-    }
+  return syscall1 (SYS_TELL, fd);
 }
 
 void
 close (int fd)
 {
-  if (thread_current()->fdt[fd] != NULL)
-    {
-      file_close(thread_current()->fdt[fd]);
-      thread_current()->fdt[fd] = NULL;
-    }
+  syscall1 (SYS_CLOSE, fd);
+}
+
+mapid_t
+mmap (int fd, void *addr)
+{
+  return syscall2 (SYS_MMAP, fd, addr);
+}
+
+void
+munmap (mapid_t mapid)
+{
+  syscall1 (SYS_MUNMAP, mapid);
+}
+
+bool
+chdir (const char *dir)
+{
+  return syscall1 (SYS_CHDIR, dir);
+}
+
+bool
+mkdir (const char *dir)
+{
+  return syscall1 (SYS_MKDIR, dir);
+}
+
+bool
+readdir (int fd, char name[READDIR_MAX_LEN + 1]) 
+{
+  return syscall2 (SYS_READDIR, fd, name);
+}
+
+bool
+isdir (int fd) 
+{
+  return syscall1 (SYS_ISDIR, fd);
+}
+
+int
+inumber (int fd) 
+{
+  return syscall1 (SYS_INUMBER, fd);
 }
