@@ -108,7 +108,10 @@ struct thread {
   int exit_status;
 
   struct thread *parent;
-  // the file is executed by this thread
+  struct file *fdt[128];
+  int next_fd;
+  int load_flag;
+  int exit_flag;
   struct file *file_executing;
 
   int waiting_for;

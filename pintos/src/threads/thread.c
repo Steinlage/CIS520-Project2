@@ -449,6 +449,12 @@ static void init_thread(struct thread *t, const char *name, int priority) {
   t->awake_time = 0;
 
 #ifdef USERPROG
+  int i;
+  t->next_fd = 3;
+  for (i = 0; i < 128; i++) {
+      t->fdt[i] = NULL;
+  }
+
   list_init(&t->file_descriptors);
   t->fd_num_to_assign = 2;
 
@@ -456,7 +462,8 @@ static void init_thread(struct thread *t, const char *name, int priority) {
 
   sema_init(&t->child_load, 0);
   t->file_executing = NULL;
-
+  t->load_flag = 0;
+  t->exit_flag = 0;
   t->parent = running_thread();
   t->waiting_for = 0;
 #endif
