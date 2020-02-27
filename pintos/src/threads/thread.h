@@ -99,7 +99,7 @@ struct thread {
 
   struct list children;
   struct list_elem child_elem;
-
+  struct list child_list;
   /* the semaphore of this thread to wait
      for the child's load (during start_process()). */
   struct semaphore child_load;

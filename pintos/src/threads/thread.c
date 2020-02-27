@@ -455,7 +455,8 @@ static void init_thread(struct thread *t, const char *name, int priority) {
       t->fdt[i] = NULL;
   }
 
-  list_init(&t->file_descriptors);
+  list_init(&t->child_list);
+  //list_init(&t->file_descriptors);
   t->fd_num_to_assign = 2;
 
   list_init(&t->children);
@@ -466,6 +467,7 @@ static void init_thread(struct thread *t, const char *name, int priority) {
   t->exit_flag = 0;
   t->parent = running_thread();
   t->waiting_for = 0;
+  list_push_back (&running_thread()->child_list, &t->child_elem);
 #endif
   old_level = intr_disable();
   list_push_back(&all_list, &t->allelem);
