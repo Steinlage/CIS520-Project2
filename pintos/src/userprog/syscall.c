@@ -68,11 +68,13 @@ halt (void)
   NOT_REACHED ();
 }
 
+
+/*Sets the current thread exit status and exits*/
 void
 exit (int status)
 {
-  syscall1 (SYS_EXIT, status);
-  NOT_REACHED ();
+  thread_current()->exit_status = status;
+  thread_exit();
 }
 
 pid_t
@@ -117,10 +119,24 @@ read (int fd, void *buffer, unsigned size)
   return syscall3 (SYS_READ, fd, buffer, size);
 }
 
+/*wries size bytes from the file to the buffer
+ * returns the number of bytes written*/
 int
 write (int fd, const void *buffer, unsigned size)
 {
-  return syscall3 (SYS_WRITE, fd, buffer, size);
+   //if there is a open file, write to the buffer the size	
+   if(fd == 1)
+   {
+      putbuf(buffer, size);
+      return size;
+   }
+   else
+   {
+      //Otherwise no files are present and nothing is written
+      return 0;
+   }
+
+
 }
 
 void
