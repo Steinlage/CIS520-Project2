@@ -16,12 +16,13 @@ struct lock filesys_lock;
 
 static void syscall_handler (struct intr_frame *);
 
+// Calls "shutdown_power_off"
 void halt (void)
 {
   shutdown_power_off();
 }
 
-// terminates user program and sends status code to kernel. A code of 0 indicates a success
+// Terminates user program and sends status code to kernel. A code of 0 indicates a success
 // and a non-0 code indicates an error.
 void exit (int status)
 {
@@ -31,13 +32,13 @@ void exit (int status)
   for (i = 3; i < 128; i++) {
       if (thread_current()->fdt[i] != NULL) {
           close(i);
-      }   
-  }   
+      }
+  }
   printf("%s: exit(%d)\n", thread_current()->name, status);
   thread_exit();
 }
 
-// ensures that the given virtual memory address is in user space, as opposed to kernel
+// Ensures that the given virtual memory address is in user space, as opposed to kernel
 // space.
 void check_address(void *addr)
 {
@@ -46,7 +47,11 @@ void check_address(void *addr)
   }
 }
 
-void 
+// Takes inputs, "esp", "arg" and "count". Creats a temporary "esp" and sets its value to
+// the value of "esp". Increments the value of "temp_esp" by 4, checks the address of
+// "temp_esp" and sets the arguement value at the index to temp_esp's value casted as an int
+// from 0 to "count"
+void
 get_argument(void *esp, int *arg, int count)
 {
   void *temp_esp;
@@ -57,19 +62,15 @@ get_argument(void *esp, int *arg, int count)
     temp_esp = temp_esp + 4;
     check_address(temp_esp);
     arg[i]= (int)temp_esp;
-  } 
+  }
 }
 
-// bool create (const char *file, unsigned initial_size) {
-
-// }
-
-// int write (int fd, const void *buffer, unsigned size) {
-//   if (fd == STDOUT_FILENO) {
-    
-//   }
-// }
-
+// Takes an input value from the commmand line (cmd_line). Creates a new process id called "child_pid"
+// sets its value to the value of "process_execute()" called on "cmd_line". Next a new thread is
+// created called "child_proc". The value here is set to the call of "get_child_process()" on
+// "child_proc" cast as an int. Next we check if the value of "child_proc" is null, meaning there is
+// no processes for it. If so, -1 is returned. Otherwise, "load_flag" is called on "child_proc" and
+// if it's value is 1, then "child_pid" is returned. Otherwise, -1 is returned.
 pid_t exec (const char *cmd_line) {
   pid_t child_pid = (pid_t)process_execute(cmd_line);
   struct thread *child_proc = get_child_process((int)child_pid);
@@ -87,10 +88,13 @@ pid_t exec (const char *cmd_line) {
   }
 }
 
+// Takes an input value of "pid" a process id. Returns the value of "process_wait()" called on "pid".
 int wait (pid_t pid) {
   return process_wait(pid);
 }
 
+// Creates a new file called "file" initially with its "initial_size" bytes in size by calling "filesys_create" if the file is non-null.
+// Otherwise it calls "exit" with the value of -1.
 bool create (const char *file, unsigned initial_size) {
   if (file == NULL) {
     exit(-1);
@@ -100,11 +104,15 @@ bool create (const char *file, unsigned initial_size) {
   }
 }
 
+// Removes the given "file" by calling "filesys_remove" on "file".
 bool remove (const char *file) {
   return filesys_remove(file);
 }
 
-int 
+// Reads sizebytes from the file open as fdinto buffer. Returns the number of bytes
+// actually read (0 at end of file), or -1 if the file could not be read (due to a condition
+// other than end of file). .
+int
 read(int fd, void *buffer, unsigned size)
 {
   lock_acquire(&filesys_lock);
@@ -132,7 +140,9 @@ read(int fd, void *buffer, unsigned size)
   return read_bytes;
 }
 
-int 
+// Writes the "size" of bytes from the "buffer" to the open file descriptor " fd". Returns the number
+// of bytes actually written, which may be less than sizeif some bytes could not be written.
+int
 write(int fd, const void *buffer, unsigned size)
 {
   lock_acquire(&filesys_lock);
@@ -150,8 +160,6 @@ write(int fd, const void *buffer, unsigned size)
       write_bytes = file_write(write_file, buffer, size);
     }
     else{
-      // lock_release(&filesys_lock);
-      // exit(-1);
       write_bytes = 0;
     }
   }
@@ -159,20 +167,20 @@ write(int fd, const void *buffer, unsigned size)
   return write_bytes;
 }
 
-int 
+// Opens the file called file. Returns a nonnegative integer handle called a "file descriptor" (fd),
+// or -1 if the file could not be opened.
+int
 open (const char *file)
 {
   lock_acquire(&filesys_lock);
   struct thread *cur = thread_current();
   int fd, i;
-  
+
   if (file == NULL) {
     fd = -1;
   }
   else {
-    // lock_acquire(&filesys_lock);
     struct file* open_file = filesys_open (file);
-
     if(open_file != NULL){
       if(strcmp(cur->name,file)==0){
         file_deny_write(open_file);
@@ -185,16 +193,17 @@ open (const char *file)
           break;
         }
       }
-      // cur->next_fd++;
     }
     else{
       fd = -1;
     }
-    // lock_release(&filesys_lock);
   }
   lock_release(&filesys_lock);
   return fd;
 }
+
+// Closes file descriptor (fd). Exiting or terminating a process implicitly closes all its
+// open file descriptors, as if by calling this function for each one.
 void
 close (int fd)
 {
@@ -207,6 +216,7 @@ close (int fd)
   }
 }
 
+// Returns the "size", in bytes, of the file open as fd (file descriptor)..
 int
 filesize(int fd)
 {
@@ -216,7 +226,10 @@ filesize(int fd)
   size = file_length(read_file);
   return size;
 }
-void 
+
+// Changes the next byte to be read or written in open file fd (file descriptor) to "position",
+// expressed in bytes from the beginning of the file.
+void
 seek (int fd, unsigned position)
 {
   struct thread *cur = thread_current();
@@ -227,7 +240,10 @@ seek (int fd, unsigned position)
     file_seek(cur->fdt[fd],position);
   }
 }
-unsigned 
+
+// Returns the position of the next byte to be read or written in open
+// file fd (file descriptor), expressed in bytes from the beginning of the file.
+unsigned
 tell (int fd)
 {
   struct thread *cur = thread_current();
@@ -239,13 +255,18 @@ tell (int fd)
   }
 }
 
+// Calls "lock_init" on the address of "filesys_lock". Then calls "intr_register_int"
+// with the values of 0x30, 3, syscall_hanlder, and "syscall".
 void
-syscall_init (void) 
+syscall_init (void)
 {
   lock_init(&filesys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
+// Takes an input value of "f" and gets the "esp" from it and then uses that value to check the
+// address. Creats a new int "SYS_NUM" and sets its value to f's esp value. Switches between
+// different cases depending on f's esp value (SYS_NUM).
 static void
 syscall_handler (struct intr_frame *f) 
 {
@@ -265,15 +286,14 @@ syscall_handler (struct intr_frame *f)
       halt();
       break;
     case SYS_EXIT:
-      /* check argument if bad address */
-      check_address((void *)(p+1));
+      check_address((void *)(p+1)); //Checks for a bad address
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
 
       get_argument(f->esp, arg, count); //Copy arguments on user stack at kernel
 
       ptemp_1 = (int *)arg[0];
-      // printf("%s\n", thread_current()->name);
+
       exit(*ptemp_1);
       free(arg);
       break;
@@ -380,12 +400,11 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_WRITE:
-      // printf("current pid: %d\n", thread_current()->tid);
       check_address((void *)(p+1));
       check_address((void *)(p+2));
       check_address((void *)(p+3));
       check_address((void *)*(p+2));
-    
+
       count = 3;
       arg = (int *)malloc(count*sizeof(int));
 
@@ -396,20 +415,19 @@ syscall_handler (struct intr_frame *f)
 
       f->eax = write((int)*ptemp_1,(const void*)*ptemp_2,(unsigned int)*ptemp_3);//save return value of sys_read at eax register
 
-      // printf("write finish\n");
       free(arg);
       break;
     case SYS_SEEK:
       check_address((void *)(p+1));
       check_address((void *)(p+2));
-      
+
       count = 2;
       arg = (int *)malloc(count*sizeof(int));
 
       get_argument(f->esp, arg, count); //Copy arguments on user stack at kernel
       ptemp_1 = (int *)arg[0];
       ptemp_2 = (int *)arg[1];
-      
+
       seek((int)*ptemp_1,(unsigned int)*ptemp_2);
 
       free(arg);
@@ -422,7 +440,7 @@ syscall_handler (struct intr_frame *f)
 
       get_argument(f->esp, arg, count); //Copy arguments on user stack at kernel
       ptemp_1 = (int *)arg[0];
-      
+
       f->eax = tell((int)*ptemp_1);
       free(arg);
       break;
@@ -440,7 +458,4 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
   }
-  // printf("%d\n", *(uint32_t *)(f->esp));
-  // printf ("system call!\n");
-  // thread_exit ();
 }
