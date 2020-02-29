@@ -145,7 +145,7 @@ page_fault (struct intr_frame *f)
   write = (f->error_code & PF_W) != 0;
   user = (f->error_code & PF_U) != 0;
 
-   // not present, user mode
+   // Enforces the separation between kernel and user memory spaces.
    if (is_kernel_vaddr(fault_addr) || not_present || !user) {
       exit(-1);
    }

@@ -291,7 +291,6 @@ thread_tid (void)
 void
 thread_exit (void) 
 {
-  // printf("------------thread_exit------------\n");
   ASSERT (!intr_context ());
 
 #ifdef USERPROG
@@ -475,8 +474,8 @@ init_thread (struct thread *t, const char *name, int priority)
   #ifdef USERPROG
   int i;
   t->next_fd = 3;
-  for (i = 0; i < 128; i++) {                                                         
-      t->fdt[i] = NULL;                                                                
+  for (i = 0; i < 128; i++) {
+      t->fdt[i] = NULL;
   }
   list_init(&t->child_list);
   t->parent = running_thread(); //parent process store
@@ -486,7 +485,6 @@ init_thread (struct thread *t, const char *name, int priority)
   sema_init(&t->load_sema, 0);
   sema_init(&t->wait_sema, 0);
   list_push_back (&running_thread()->child_list, &t->child_elem);
-  
   #endif
 }
 
