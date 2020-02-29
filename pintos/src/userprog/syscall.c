@@ -12,6 +12,7 @@
 #include "devices/input.h"
 #include "threads/malloc.h"
 
+// protects files from write conflicts.
 struct lock filesys_lock;
 
 static void syscall_handler (struct intr_frame *);
