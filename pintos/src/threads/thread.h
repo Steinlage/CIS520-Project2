@@ -91,19 +91,19 @@ struct thread
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
-    struct file *fdt[128];
-    int next_fd;
-    struct thread* parent;
-    struct list_elem child_elem;
-    struct list child_list;
+    struct file *fdt[128];		// file descriptor table
+    int next_fd;			// the next availible fd int
+    struct thread* parent;		// the parent thread
+    struct list_elem child_elem;	// the list of child elements 
+    struct list child_list;		// the list of child threads
 
     int load_flag;
     int exit;
-    struct semaphore exit_sema;
-    struct semaphore wait_sema;
-    struct semaphore load_sema;
+    struct semaphore exit_sema;		// exit state semaphore
+    struct semaphore wait_sema;		// wait state semaphore
+    struct semaphore load_sema;		// load state semaphore
 
-    int exit_status;
+    int exit_status;			// the thread's exit corde
 #endif
 
     /* Owned by thread.c. */

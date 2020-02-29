@@ -22,6 +22,9 @@
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 
+
+
+/*Returns the thread  of the current child process*/
 struct thread *get_child_process(int pid)
 {
   struct thread *cur = thread_current();
@@ -35,6 +38,8 @@ struct thread *get_child_process(int pid)
   }
   return NULL;
 }
+
+/*To avoid resource leakage, the child process is removed and freed*/
 void remove_child_process(struct thread *cp)
 {
   list_remove(&cp->child_elem);
@@ -48,7 +53,7 @@ void remove_child_process(struct thread *cp)
 tid_t
 process_execute (const char *file_name) 
 {
-  // printf("-------start_process_Execute------------\n");
+  
   char *fn_copy;
   tid_t tid;
   /* Make a copy of FILE_NAME.
@@ -58,12 +63,17 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
   
-  // char *token, *save_ptr;
+  //allocates the size of the file_name using strlen + 1 because 
+  //strlen strips the null character at the end and copies the filename 
+  //into the buffer of the size of the filename.
+  //Uses strtok_r to allow string tokenizing and if it is interrupted 
+  //using strtok_r will allow the process to not be disrupted
   char *save_ptr;
-  char *file_name_tmp = (char *)malloc(strlen(file_name) + 1); // free필요
+  char *file_name_tmp = (char *)malloc(strlen(file_name) + 1); 
   strlcpy(file_name_tmp, file_name, strlen(file_name) + 1);
   file_name_tmp= strtok_r ((char *)file_name_tmp, " ", &save_ptr);
   
+  //if the file does not open sucessfully/returns NULL returns -1
   if (filesys_open(file_name_tmp) == NULL) {
       return -1;
   }
@@ -71,20 +81,11 @@ process_execute (const char *file_name)
   /* Create a new thread to execute FILE_NAME. */
   tid = thread_create (file_name_tmp, PRI_DEFAULT, start_process, fn_copy);
   free(file_name_tmp);
-  // printf("--------------exec_sema_down, threed id :%d--------\n",tid);
+  //protects the resource of the current thread while it's processing
   sema_down(&thread_current()->load_sema);
-  // printf("--------------exec_sema_up, thread id :%d--------\n",tid);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
-  // struct thread *t;
-  // struct list_elem *e;
-  // for (e = list_begin(&thread_current()->child_list); e != list_end(&thread_current()->child_list); e = list_next(e)) {
-  //   t = list_entry(e, struct thread, child_elem);
-  //   if (t->exit_status == -1) {
-  //     return process_wait(tid);
-  //   }
-  // }
   return tid;
 }
 
@@ -93,81 +94,68 @@ process_execute (const char *file_name)
 static void
 start_process (void *file_name_)
 {
-  // printf("-------start_start_process------------\n");
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
 
-  char *file_name_tmp = (char *)malloc(strlen(file_name) + 1); // free필요
-  strlcpy(file_name_tmp, file_name, strlen(file_name) + 1);
-  // char *token_a, *save_ptr_a;
+  //Simlar to process_execute
   char *save_ptr_a;
+  char *file_name_tmp = (char *)malloc(strlen(file_name) + 1); 
+  strlcpy(file_name_tmp, file_name, strlen(file_name) + 1);
   file_name_tmp = strtok_r (file_name_tmp, " ", &save_ptr_a);
-
-  // int i, program_length = 0;
-  // for (i=0; file_name[i] != '\0' && file_name[i] != ' '; i++) {
-  //   program_length++;
-  // }
-  // char *program_name = (char *)malloc(program_length + 1);
-  // strlcpy(program_name, file_name, program_length + 1);
-  // program_name[program_length] = '\0';
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
   if_.gs = if_.fs = if_.es = if_.ds = if_.ss = SEL_UDSEG;
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
-
-  // printf("BEFORE LOAD\n");
   success = load (file_name_tmp, &if_.eip, &if_.esp);
-  free(file_name_tmp);
-  // palloc_free_page(file_name);
+  
+  free(file_name_tmp); //after loading, free
+  
   if(success){
     thread_current()->load_flag =1; //load success
   }
   else{
     thread_current()->load_flag =0; //load fail
   }
-  // printf("------------semaup------------\n");
-  // free(program_name);
-
-  /* If load failed, quit. */
   
   if (success) {
-  //
-    // thread_current()->load_flag =1; //load success
+    
     int argc = 0;
     char *token, *save_ptr;
     int idx = 0;
-    char *file_name_temp = (char *)malloc(strlen(file_name) + 1); // free필요
+    char *file_name_temp = (char *)malloc(strlen(file_name) + 1); // mallocate
     strlcpy(file_name_temp, file_name, strlen(file_name) + 1);
-    for (token = strtok_r(file_name_temp, " ", &save_ptr); token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
-      argc++;
+    for (token = strtok_r(file_name_temp, " ", &save_ptr);
+		    token != NULL; token = strtok_r (NULL, " ", &save_ptr)) {
+      argc++; //number of arguments increases
     }
 
-    char **parse = (char **)malloc(argc * sizeof(char *));
+    char **parse = (char **)malloc(argc * sizeof(char *)); // allocates space for the arguments
 
     strlcpy(file_name_temp, file_name, strlen(file_name) + 1);
-    for (idx = 0, token = strtok_r(file_name_temp, " ", &save_ptr); token != NULL; idx++, token = strtok_r (NULL, " ", &save_ptr)) {
-      parse[idx] = token;
+    for (idx = 0, token = strtok_r(file_name_temp, " ", &save_ptr); 
+		    token != NULL; idx++, token = strtok_r (NULL, " ", &save_ptr)) {
+      parse[idx] = token;  // put arugments into mallocated space by index
     }
   
-    argument_stack(parse, argc, &if_.esp);
-
-    // hex_dump(if_.esp, if_.esp, PHYS_BASE - if_.esp, true);
+    //see the method below 
+    argument_stack(parse, argc, &if_.esp); 
     
+    //free after done
     free(parse);
     free(file_name_temp);
-
-  //
   }
   
-  sema_up(&thread_current()->parent->load_sema); // load 끝나면 parent의 sema를 넘겨준다.
+
+  //increments the semphore load for the current thread parent
+  sema_up(&thread_current()->parent->load_sema); 
   palloc_free_page (file_name);
 
-  if (!success) 
-    // thread_current()->load_flag =0; //load fail
+  if (!success)
     thread_exit ();
+
   /* Start the user process by simulating a return from an
      interrupt, implemented by intr_exit (in
      threads/intr-stubs.S).  Because intr_exit takes all of its
@@ -178,54 +166,53 @@ start_process (void *file_name_)
   NOT_REACHED ();
 }
 
+
+/*Establishes the stack for argument passing*/
 void
 argument_stack(char **parse, int cnt, void **esp)
 {
   int i, j, k, arg_length = 0;
   int addrs[cnt - 1];
-  /* argument */
+  //going backwards
   for (i=cnt-1;i>=0;i--)
   {
     for (j=strlen(parse[i]);j>=0;j--)
     {
+      //decrement stack pointer
       *esp = *esp - 1;
       **(char **)esp = parse[i][j];
     }
+    //increas arugment length as args are read in
     addrs[i] = (int)*esp;
     arg_length = arg_length + strlen(parse[i]) + 1;
   }
 
+  // Rounds the stack pointer down to a multiple of four
   if (arg_length % 4 != 0) {
     for (k=(((arg_length / 4) + 1) * 4) - arg_length;k>0;k--) {
       *esp = *esp - 1;
-      **(uint8_t **)esp = 0;
+      **(uint8_t **)esp = 0; //NULL pointer sentiel
     }
   }
 
-  /* argument address */
+  /* decrement argument address */
   *esp = *esp - 4;
-  **(uint32_t **)esp = 0;
-  // printf("ESP : %d\n", (int)*esp);
+  **(uint32_t **)esp = 0; //NULL pointer sentiel if arg_length can be divided by 4
       
+  //Assigning the type for each arugment based on the size
   for (i=cnt-1;i>=0;i--)
   {
     *esp = *esp - 4;
-    // printf("ESP : %d\n", (int)*esp);
     **(uint32_t **)esp = addrs[i];
-    // **(uint32_t **)esp = &(parse[i]);
-    // printf("ADDR : %d\n", addrs[i]);
   }
+
   /* argv, argc, return_address */
   *esp = *esp - 4;
   **(uint32_t **)esp = (uint32_t)((int)*esp + 4);
-  // printf("ESP : %d\n", (int)*esp);
   *esp = *esp - 4;
   **(int **)esp = cnt;
-  // printf("ESP : %d\n", (int)*esp);
-      
   *esp = *esp - 4;
   **(uint32_t **)esp = 0;
-  // printf("ESP : %d\n", (int)*esp);
       
 }
 
