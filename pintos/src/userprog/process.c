@@ -230,14 +230,14 @@ process_wait (tid_t child_tid UNUSED)
 
   struct thread *child= get_child_process(child_tid);
   if(child ==NULL){
-    return -1;
+    return -1; // terminates
   }
   else{
-    sema_down(&child->wait_sema);
+    sema_down(&child->wait_sema); //waiting for thread to die
     if(child->exit != 1){
-      return -1;
-    }
-    else{
+      return -1; //if exit is 0, terminates
+    } 
+    else{ //exits and terminates child thread and passes exit status to parent
       int exit_num = child->exit_status;
       list_remove(&child->child_elem);
       sema_up(&child->exit_sema);
@@ -269,6 +269,8 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  //sets exit state to true, allows wait to work, and exit to not  
   cur->exit =1;
   sema_up(&cur->wait_sema);
   sema_down(&cur->exit_sema);
@@ -366,15 +368,13 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
 bool
 load (const char *file_name, void (**eip) (void), void **esp) 
 {
-  // printf("-------start_load------------\n");
   struct thread *t = thread_current ();
   struct Elf32_Ehdr ehdr;
   struct file *file = NULL;
   off_t file_ofs;
   bool success = false;
   int i;
-  // char *a = malloc(sizeof(char) * 10);
-  //
+ 
   /* Allocate and activate page directory. */
   t->pagedir = pagedir_create ();
   if (t->pagedir == NULL) 
@@ -472,8 +472,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
 
  done:
   /* We arrive here whether the load is successful or not. */
-  // file_close (file);
-  // printf("------------load_end---------\n");
+  
   return success;
 }
 
