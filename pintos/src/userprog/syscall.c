@@ -12,7 +12,7 @@
 #include "devices/input.h"
 #include "threads/malloc.h"
 
-// struct lock filesys_lock;
+struct lock filesys_lock;
 
 static void syscall_handler (struct intr_frame *);
 
@@ -103,7 +103,7 @@ bool remove (const char *file) {
 int 
 read(int fd, void *buffer, unsigned size)
 {
-  // lock_acquire(&filesys_lock);
+  lock_acquire(&filesys_lock);
 
   struct file* read_file;
   struct thread *cur = thread_current();
@@ -124,14 +124,14 @@ read(int fd, void *buffer, unsigned size)
       read_bytes = -1;
     }
   }
-  // lock_release(&filesys_lock);
+  lock_release(&filesys_lock);
   return read_bytes;
 }
 
 int 
 write(int fd, const void *buffer, unsigned size)
 {
-  // lock_acquire(&filesys_lock);
+  lock_acquire(&filesys_lock);
   struct file* write_file;
   struct thread *cur = thread_current();
   int write_bytes = 0;
@@ -151,14 +151,14 @@ write(int fd, const void *buffer, unsigned size)
       write_bytes = 0;
     }
   }
-  // lock_release(&filesys_lock);
+  lock_release(&filesys_lock);
   return write_bytes;
 }
 
 int 
 open (const char *file)
 {
-  // lock_acquire(&filesys_lock);
+  lock_acquire(&filesys_lock);
   struct thread *cur = thread_current();
   int fd, i;
   
@@ -188,7 +188,7 @@ open (const char *file)
     }
     // lock_release(&filesys_lock);
   }
-  // lock_release(&filesys_lock);
+  lock_release(&filesys_lock);
   return fd;
 }
 void
@@ -238,7 +238,7 @@ tell (int fd)
 void
 syscall_init (void) 
 {
-  // lock_init(&filesys_lock);
+  lock_init(&filesys_lock);
   intr_register_int (0x30, 3, INTR_ON, syscall_handler, "syscall");
 }
 
