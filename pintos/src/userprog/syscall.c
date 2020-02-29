@@ -21,6 +21,8 @@ void halt (void)
   shutdown_power_off();
 }
 
+// terminates user program and sends status code to kernel. A code of 0 indicates a success
+// and a non-0 code indicates an error.
 void exit (int status)
 {
   thread_current()->exit_status = status;
@@ -35,6 +37,8 @@ void exit (int status)
   thread_exit();
 }
 
+// ensures that the given virtual memory address is in user space, as opposed to kernel
+// space.
 void check_address(void *addr)
 {
   if (!is_user_vaddr(addr)) {
