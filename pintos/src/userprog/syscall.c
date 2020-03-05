@@ -76,7 +76,7 @@ pid_t exec (const char *cmd_line) {
   pid_t child_pid = (pid_t)process_execute(cmd_line);
   struct thread *child_proc = get_child_process((int)child_pid);
 
-  if(child_proc ==NULL){
+  if(child_proc == NULL){
     return -1;
   }
   else{
@@ -120,16 +120,16 @@ read(int fd, void *buffer, unsigned size)
 
   struct file* read_file;
   struct thread *cur = thread_current();
-  int read_bytes = 0,  i;
+  int read_bytes = 0, i;
 
   if(fd == 0){
-    for(i=0;(unsigned)i<size;i++){
-      *((char *)buffer+i) = input_getc();
+    for(i = 0; (unsigned)i < size; i++){
+      *((char *)buffer + i) = input_getc();
     }
     read_bytes = size;
   }
   else{
-    if(cur->fdt[fd]!=NULL){
+    if(cur->fdt[fd] != NULL){
       read_file = cur->fdt[fd];
       read_bytes = file_read(read_file, buffer, size);
     }
@@ -156,7 +156,7 @@ write(int fd, const void *buffer, unsigned size)
     write_bytes = size;
   }
   else{
-    if(cur->fdt[fd]!=NULL){
+    if(cur->fdt[fd] != NULL){
       write_file = cur->fdt[fd];
       write_bytes = file_write(write_file, buffer, size);
     }
@@ -183,12 +183,12 @@ open (const char *file)
   else {
     struct file* open_file = filesys_open (file);
     if(open_file != NULL){
-      if(strcmp(cur->name,file)==0){
+      if(strcmp(cur->name,file) == 0){
         file_deny_write(open_file);
       }
       cur->fdt[cur->next_fd] = open_file;
       fd = cur->next_fd;
-      for (i=3;i<128;i++) {
+      for (i = 3 ;i < 128; i++) {
         if (cur->fdt[i] == NULL) {
           cur->next_fd = i;
           break;
@@ -234,7 +234,7 @@ void
 seek (int fd, unsigned position)
 {
   struct thread *cur = thread_current();
-  if(cur->fdt[fd]==NULL){
+  if(cur->fdt[fd] == NULL){
     exit(-1);
   }
   else{
@@ -248,7 +248,7 @@ unsigned
 tell (int fd)
 {
   struct thread *cur = thread_current();
-  if(cur->fdt[fd]==NULL){
+  if(cur->fdt[fd] == NULL){
     exit(-1);
   }
   else{
@@ -287,7 +287,7 @@ syscall_handler (struct intr_frame *f)
       halt();
       break;
     case SYS_EXIT:
-      check_address((void *)(p+1)); //Checks for a bad address
+      check_address((void *)(p + 1)); //Checks for a bad address
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
 
@@ -299,8 +299,8 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_EXEC:
-      check_address((void *)(p+1));
-      check_address((void *)*(p+1));
+      check_address((void *)(p + 1));
+      check_address((void *)*(p + 1));
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
 
@@ -319,7 +319,7 @@ syscall_handler (struct intr_frame *f)
 
       ptemp_1 = (int *)arg[0];
 
-      if((int)*ptemp_1==-1){
+      if((int)*ptemp_1 == -1){
         f->eax = -1;
       }
       else{
@@ -328,9 +328,9 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_CREATE:
-      check_address((void *)(p+1));
-      check_address((void *)(p+2));
-      check_address((void *)*(p+1));
+      check_address((void *)(p + 1));
+      check_address((void *)(p + 2));
+      check_address((void *)*(p + 1));
       count = 2;
       arg = (int *)malloc(count*sizeof(int));
 
@@ -343,8 +343,8 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_REMOVE:
-      check_address((void *)(p+1));
-      check_address((void *)*(p+1));
+      check_address((void *)(p + 1));
+      check_address((void *)*(p + 1));
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
 
@@ -352,12 +352,12 @@ syscall_handler (struct intr_frame *f)
 
       ptemp_1 = (int *)arg[0];
 
-      f->eax = remove((const char *)*(p+1));
+      f->eax = remove((const char *)*(p + 1));
       free(arg);
       break;
     case SYS_OPEN:
-      check_address((void *)(p+1)); // arg0
-      check_address((void *)*(p+1)); // file_name
+      check_address((void *)(p + 1)); // arg0
+      check_address((void *)*(p + 1)); // file_name
 
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
@@ -370,7 +370,7 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_FILESIZE:
-      check_address((void *)(p+1)); //arg0
+      check_address((void *)(p + 1)); //arg0
 
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
@@ -383,10 +383,10 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_READ:
-      check_address((void *)(p+3)); //argument size
-      check_address((void *)(p+2));
-      check_address((void *)(p+1));
-      check_address((void *)*(p+2)); //argument *buffer
+      check_address((void *)(p + 3)); //argument size
+      check_address((void *)(p + 2));
+      check_address((void *)(p + 1));
+      check_address((void *)*(p + 2)); //argument *buffer
 
       count = 7;
       arg = (int *)malloc(count*sizeof(int));
@@ -401,10 +401,10 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_WRITE:
-      check_address((void *)(p+1));
-      check_address((void *)(p+2));
-      check_address((void *)(p+3));
-      check_address((void *)*(p+2));
+      check_address((void *)(p + 1));
+      check_address((void *)(p + 2));
+      check_address((void *)(p + 3));
+      check_address((void *)*(p + 2));
 
       count = 3;
       arg = (int *)malloc(count*sizeof(int));
@@ -419,8 +419,8 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_SEEK:
-      check_address((void *)(p+1));
-      check_address((void *)(p+2));
+      check_address((void *)(p + 1));
+      check_address((void *)(p + 2));
 
       count = 2;
       arg = (int *)malloc(count*sizeof(int));
@@ -434,7 +434,7 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_TELL:
-      check_address((void *)(p+1));
+      check_address((void *)(p + 1));
 
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
@@ -446,16 +446,16 @@ syscall_handler (struct intr_frame *f)
       free(arg);
       break;
     case SYS_CLOSE:
-      check_address((void *)(p+1)); // arg0
+      check_address((void *)(p + 1)); // arg0
 
       count = 1;
       arg = (int *)malloc(count*sizeof(int));
 
-      get_argument(f->esp, arg, count); //Copy arguments on user stack at kernel
+      get_argument(f->esp, arg, count); // Copy arguments on user stack at kernel
 
       ptemp_1 = (int *)arg[0];
 
-      close(*ptemp_1); //save return value of sys_open at eax register
+      close(*ptemp_1); // Save return value of sys_open at eax register
       free(arg);
       break;
   }
